@@ -4,7 +4,7 @@ on:
   schedule:
     # Run every 2 minutes
     - cron: '*/2 * * * *'
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch: # Cho phép trigger thủ công
 
 jobs:
   check-rsvps:
@@ -30,32 +30,26 @@ jobs:
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
 
-      # 🔹 Kiểm tra các secret có rỗng không
       - name: Check secrets
         run: |
           if [ -z "${{ secrets.GOOGLE_SHEET_ID }}" ]; then
             echo "ERROR: GOOGLE_SHEET_ID is empty"
             exit 1
           fi
-
           if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" ]; then
             echo "ERROR: GOOGLE_SERVICE_ACCOUNT_KEY is empty"
             exit 1
           fi
-
           if [ -z "${{ secrets.GMAIL_USER }}" ]; then
             echo "ERROR: GMAIL_USER is empty"
             exit 1
           fi
-
           if [ -z "${{ secrets.GMAIL_PASS }}" ]; then
             echo "ERROR: GMAIL_PASS is empty"
             exit 1
           fi
-
           echo "✅ All secrets are set"
 
-      # 🔹 Tạo file service-account-key.json chính xác
       - name: Create service account key file
         run: |
           cat <<EOF > service-account-key.json
