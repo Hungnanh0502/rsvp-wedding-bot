@@ -1,48 +1,52 @@
 name: RSVP Email Workflow
-
 on:
   schedule:
-    - cron: '*/2 * * * *'       # Chạy mỗi 2 phút
-  workflow_dispatch:            # Cho phép bấm Run tay
-
+    # Run every 2 minutes
+    - cron: '*/2 * * * *'
+  workflow_dispatch: # Allow manual triggering
 jobs:
   check-rsvps:
     runs-on: ubuntu-latest
-
+   
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+     
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
+     
       - name: Install dependencies
         run: npm ci
-
-      # Tạo file service-account-key.json ĐÚNG CÁCH (đây là chỗ quyết định thành bại)
-      - name: Create service account key file
-        run: echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > service-account-key.json
-        env:
-          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-
-      # Tạo .env (chỉ cần 3 cái này là đủ)
+     
       - name: Create .env file
         run: |
           echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> .env
+          echo "GOOGLE_SERVICE_ACCOUNT_KEY=service-account-key.json" >> .env
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
-
-      # (Tùy chọn) Cache trạng thái lần chạy trước – giữ lại cũng được, không ảnh hưởng
+     
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      # CHỈ SỬA ĐOẠN NÀY THÔI – CÁCH DUY NHẤT KHÔNG BỊ HỎNG KEY
+      - name: Create service account key file
+        run: |
+          cat << EOF > service-account-key.json
+          ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          EOF
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+     
       - name: Cache workflow state
         uses: actions/cache@v4
+        id: cache-state
         with:
           path: |
             .last-processed-row
             .row-count
           key: workflow-state
-
+          restore-keys: |
+            workflow-state-
+     
       - name: Run RSVP email workflow
         run: node workflow.js
