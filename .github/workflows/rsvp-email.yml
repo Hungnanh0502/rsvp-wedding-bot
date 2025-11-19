@@ -4,7 +4,7 @@ on:
   schedule:
     # Chạy mỗi 2 phút
     - cron: '*/2 * * * *'
-  workflow_dispatch: # Cho phép trigger thủ công
+  workflow_dispatch: # Cho phép chạy thủ công
 
 jobs:
   check-rsvps:
@@ -26,46 +26,47 @@ jobs:
       - name: Create .env file
         run: |
           echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> .env
-          echo "GOOGLE_SERVICE_ACCOUNT_KEY=service-account-key.json" >> .env
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
 
-      - name: Check secrets
+      - name: Validate required secrets
         run: |
           if [ -z "${{ secrets.GOOGLE_SHEET_ID }}" ]; then
-            echo "ERROR: GOOGLE_SHEET_ID is empty"
-            exit 1
+            echo "ERROR: GOOGLE_SHEET_ID is missing"; exit 1
           fi
           if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" ]; then
-            echo "ERROR: GOOGLE_SERVICE_ACCOUNT_KEY is empty"
-            exit 1
+            echo "ERROR: GOOGLE_SERVICE_ACCOUNT_KEY is missing"; exit 1
           fi
           if [ -z "${{ secrets.GMAIL_USER }}" ]; then
-            echo "ERROR: GMAIL_USER is empty"
-            exit 1
+            echo "ERROR: GMAIL_USER is missing"; exit 1
           fi
           if [ -z "${{ secrets.GMAIL_PASS }}" ]; then
-            echo "ERROR: GMAIL_PASS is empty"
-            exit 1
+            echo "ERROR: GMAIL_PASS is missing"; exit 1
           fi
-          echo "✅ All secrets are set"
+          echo "All required secrets are present"
 
-      - name: Create service account key file
+      - name: Create Google Service Account Key file (JSON)
+        # Cách an toàn nhất: lưu secret dưới dạng chuỗi JSON đầy đủ (không cần base64)
         run: |
-          cat <<EOF > service-account-key.json
-${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-EOF
+          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" > service-account-key.json
+          echo "service-account-key.json created successfully"
 
-      - name: Cache workflow state
+      - name: Cache last processed row (tránh gửi email trùng)
         uses: actions/cache@v4
         id: cache-state
         with:
           path: |
             .last-processed-row
             .row-count
-          key: workflow-state
+          key: rsvp-workflow-state-${{ github.run_id }}
           restore-keys: |
-            workflow-state-
+            rsvp-workflow-state-
 
-      - name: Run RSVP email workflow
+      - name: Run RSVP Email Workflow
         run: node workflow.js
+
+      - name: Save cache state (nếu script có ghi file .last-processed-row)
+        if: always()
+        run: |
+          echo "Caching state for next run..."
+          # Cache sẽ tự động lưu nếu có file thay đổi
