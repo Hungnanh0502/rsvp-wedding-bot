@@ -2,44 +2,38 @@ name: RSVP Email Workflow
 
 on:
   schedule:
-    # Chạy mỗi 2 phút
+    # Run every 2 minutes
     - cron: '*/2 * * * *'
-  workflow_dispatch: # Cho phép chạy thủ công
+  workflow_dispatch: # Allow manual triggering
 
 jobs:
   check-rsvps:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # 2️⃣ Setup Node.js
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      # 3️⃣ Cài đặt dependencies
+      
       - name: Install dependencies
         run: npm ci
-
-      # 4️⃣ Tạo .env file
+      
       - name: Create .env file
         run: |
           echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> .env
           echo "GOOGLE_SERVICE_ACCOUNT_KEY=service-account-key.json" >> .env
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
-
-      # 5️⃣ Tạo file service-account-key.json từ secret Base64
+      
       - name: Create service account key file
         run: |
-          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_B64 }}" | base64 --decode > service-account-key.json
-
-      # 6️⃣ Cache workflow state (tùy chọn)
+          printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
+      
       - name: Cache workflow state
         uses: actions/cache@v4
         id: cache-state
@@ -50,7 +44,7 @@ jobs:
           key: workflow-state
           restore-keys: |
             workflow-state-
-
-      # 7️⃣ Chạy workflow RSVP
+      
       - name: Run RSVP email workflow
         run: node workflow.js
+
