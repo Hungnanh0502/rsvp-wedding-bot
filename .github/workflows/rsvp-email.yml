@@ -32,7 +32,10 @@ jobs:
       
       - name: Create service account key file
         run: |
-          printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
+          cat <<EOF > service-account-key.json
+      ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+      EOF
+
       
       - name: Cache workflow state
         uses: actions/cache@v4
