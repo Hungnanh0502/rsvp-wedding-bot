@@ -1,3 +1,5 @@
+require('dotenv').config();
+process.env.TZ = 'Asia/Ho_Chi_Minh';
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
