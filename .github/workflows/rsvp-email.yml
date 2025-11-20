@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # 👈 THÊM DÒNG NÀY
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,7 +31,8 @@ jobs:
           echo "GOOGLE_SERVICE_ACCOUNT_KEY=service-account-key.json" >> .env
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
-          echo "SHEET_NAME=RSVP" >> .env  # 👈 THÊM DÒNG NÀY
+          echo "SPREADSHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> .env
+          echo "SHEET_NAME=RSVP" >> .env
       
       - name: Create service account key file
         run: |
@@ -41,7 +42,7 @@ jobs:
         uses: actions/cache@v4
         id: cache-emails
         with:
-          path: processed_emails.json  # 👈 THAY ĐỔI TÊN FILE
+          path: processed_emails.json
           key: processed-emails-${{ hashFiles('processed_emails.json') }}
           restore-keys: |
             processed-emails-
