@@ -271,20 +271,21 @@ async function checkForNewRows() {
       if (emailSent) {
         processedEmails.add(emailLower);
         console.log(`Marked ${emailLower} as processed`);
+      
         try {
           await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!H${rowIndex}`,
             valueInputOption: 'RAW',
             requestBody: {
-        values: [['TRUE']],
-      },
-    });
-    console.log(`Row ${rowIndex}: Updated Sent column to TRUE`);
-  } catch (err) {
-    console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
-  }
-}
+              values: [['TRUE']],
+            },
+          });
+          console.log(`Row ${rowIndex}: Updated Sent column to TRUE`);
+        } catch (err) {
+          console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
+        }
+      }
           
 
 // Run the check every minute (for local development)
