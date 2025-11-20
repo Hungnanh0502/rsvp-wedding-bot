@@ -2,9 +2,8 @@ name: RSVP Email Workflow
 
 on:
   schedule:
-    # Run every 2 minutes
     - cron: '*/2 * * * *'
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
   check-rsvps:
@@ -43,9 +42,7 @@ jobs:
         id: cache-emails
         with:
           path: processed_emails.json
-          key: processed-emails-${{ hashFiles('processed_emails.json') }}
-          restore-keys: |
-            processed-emails-
+          key: processed-emails-v1
       
       - name: Initialize processed_emails.json if not exists
         run: |
@@ -59,9 +56,12 @@ jobs:
       - name: Run RSVP email workflow
         run: node workflow.js
       
-      - name: Commit and push if processed_emails.json changed
+      - name: Auto-commit processed emails
+        if: success()
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add processed_emails.json
-          git diff --staged --quiet || (git commit -m "🤖 Update processed emails list [skip ci]" && git push)
+          # Chỉ commit nếu có thay đổi
+          git diff --staged --quiet || git commit -m "🤖 Update processed emails [skip ci]"
+          git push
