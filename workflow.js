@@ -149,9 +149,6 @@ async function sendEmail(to, subject, message) {
   }
 }
 
-// Check for new rows and process them
-const fs = require('fs');
-const path = require('path');
 
 const PROCESSED_EMAILS_FILE = 'processed_emails.json';
 
