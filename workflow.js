@@ -161,14 +161,14 @@ async function checkForNewRows() {
       // Try with sheet name
       response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!B:Z`,
+        range: `${SHEET_NAME}!A:Z`,
       });
     } catch (error) {
       // If that fails, try without sheet name (uses first sheet)
       try {
         response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'B:Z',
+          range: 'A:Z',
         });
       } catch (err2) {
         // Try getting sheet names first
@@ -178,7 +178,7 @@ async function checkForNewRows() {
         const firstSheetName = sheetInfo.data.sheets[0].properties.title;
         response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${firstSheetName}!B:Z`,
+          range: `${firstSheetName}!A:Z`,
         });
       }
     }
@@ -220,11 +220,11 @@ async function checkForNewRows() {
       const row = newRows[i];
       
       // Map row data (adjust indices based on your sheet structure)
-      const name = row[0] || '';
-      const email = row[1] || '';
-      const zusage = row[2] || '';
-      const guests = row[3] || '';
-      const comment = row[4] || '';
+      const name = row[1] || '';
+      const email = row[2] || '';
+      const zusage = row[3] || '';
+      const guests = row[4] || '';
+      const comment = row[5] || '';
       
       if (!email) {
         console.log(`Row ${rowIndex}: No email found, skipping`);
