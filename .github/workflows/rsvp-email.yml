@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # 👈 THÊM DÒNG NÀY
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,22 +31,36 @@ jobs:
           echo "GOOGLE_SERVICE_ACCOUNT_KEY=service-account-key.json" >> .env
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" >> .env
           echo "GMAIL_PASS=${{ secrets.GMAIL_PASS }}" >> .env
+          echo "SHEET_NAME=RSVP" >> .env  # 👈 THÊM DÒNG NÀY
       
       - name: Create service account key file
         run: |
           printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
       
-      - name: Cache workflow state
+      - name: Cache processed emails
         uses: actions/cache@v4
-        id: cache-state
+        id: cache-emails
         with:
-          path: |
-            .last-processed-row
-            .row-count
-          key: workflow-state
+          path: processed_emails.json  # 👈 THAY ĐỔI TÊN FILE
+          key: processed-emails-${{ hashFiles('processed_emails.json') }}
           restore-keys: |
-            workflow-state-
+            processed-emails-
+      
+      - name: Initialize processed_emails.json if not exists
+        run: |
+          if [ ! -f processed_emails.json ]; then
+            echo "[]" > processed_emails.json
+            echo "Created new processed_emails.json file"
+          else
+            echo "processed_emails.json already exists"
+          fi
       
       - name: Run RSVP email workflow
         run: node workflow.js
-
+      
+      - name: Commit and push if processed_emails.json changed
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add processed_emails.json
+          git diff --staged --quiet || (git commit -m "🤖 Update processed emails list [skip ci]" && git push)
