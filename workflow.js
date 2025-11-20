@@ -150,21 +150,55 @@ async function sendEmail(to, subject, message) {
 }
 
 // Check for new rows and process them
+const fs = require('fs');
+const path = require('path');
+
+const PROCESSED_EMAILS_FILE = 'processed_emails.json';
+
+// Hàm load emails đã xử lý
+function loadProcessedEmails() {
+  try {
+    if (fs.existsSync(PROCESSED_EMAILS_FILE)) {
+      const data = fs.readFileSync(PROCESSED_EMAILS_FILE, 'utf8');
+      const emails = JSON.parse(data);
+      console.log(`📁 Loaded ${emails.length} processed emails from file`);
+      return new Set(emails);
+    }
+  } catch (error) {
+    console.log('❌ No processed emails file found or error reading, creating new one');
+  }
+  return new Set();
+}
+
+// Hàm save emails đã xử lý
+function saveProcessedEmails(emailsSet) {
+  try {
+    const emailsArray = Array.from(emailsSet);
+    fs.writeFileSync(PROCESSED_EMAILS_FILE, JSON.stringify(emailsArray, null, 2));
+    console.log(`💾 Saved ${emailsArray.length} processed emails to ${PROCESSED_EMAILS_FILE}`);
+  } catch (error) {
+    console.error('❌ Error saving processed emails:', error);
+  }
+}
+
 async function checkForNewRows() {
+  let processedEmails;
+  
   try {
     const sheets = await getGoogleSheetsClient();
     
+    // Load emails đã xử lý từ file
+    processedEmails = loadProcessedEmails();
+    
     // Get all data from the sheet
-    // Try without sheet name first, or use the actual sheet name
     let response;
     try {
-      // Try with sheet name
       response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET_NAME}!A:Z`,
       });
     } catch (error) {
-      // If that fails, try without sheet name (uses first sheet)
+      // If that fails, try without sheet name
       try {
         response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
@@ -185,44 +219,21 @@ async function checkForNewRows() {
 
     const rows = response.data.values;
     if (!rows || rows.length <= 1) {
-      console.log('No data rows found');
+      console.log('📭 No data rows found');
       return;
     }
 
-    // Get current total row count (including header)
-    const currentRowCount = rows.length;
-    const savedRowCount = loadRowCount();
-    
-    console.log(`Current row count: ${currentRowCount}, Saved row count: ${savedRowCount || 'none'}`);
-    
-    // If row count has changed, reset lastProcessedRow to 0
-    if (savedRowCount !== null && savedRowCount !== currentRowCount) {
-      console.log(`Row count changed from ${savedRowCount} to ${currentRowCount}. Resetting lastProcessedRow to 0.`);
-      lastProcessedRow = 0;
-      saveLastProcessedRow(0);
-    }
+    // Skip header row
+    const dataRows = rows.slice(1);
+    let newEmailsCount = 0;
+    let skippedEmailsCount = 0;
 
-    // Only process new rows (rows after lastProcessedRow)
-    if (rows.length <= lastProcessedRow + 1) {
-      console.log('No new rows to process');
-      // Still save the row count even if no new rows
-      saveRowCount(currentRowCount);
-      return;
-    }
+    console.log(`📊 Found ${dataRows.length} data rows in spreadsheet`);
+    console.log(`📧 Already processed: ${processedEmails.size} emails`);
 
-    // Skip header row and process only new rows
-    const newRows = rows.slice(Math.max(lastProcessedRow + 1, 1));
-    
-    console.log(`Found ${newRows.length} new row(s) to process (starting from row ${lastProcessedRow + 2})`);
-    
-    // DEBUG: Kiểm tra quyền trước khi xử lý
-    console.log('=== DEBUG PERMISSION CHECK ===');
-    console.log(`Spreadsheet ID: ${SPREADSHEET_ID}`);
-    console.log(`Sheet Name: "${SHEET_NAME}"`);
-    
-    for (let i = 0; i < newRows.length; i++) {
-      const rowIndex = lastProcessedRow + i + 2; // +2 because: lastProcessedRow is 0-indexed, +1 for header, +1 for next row
-      const row = newRows[i];
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowIndex = i + 2; // +2 because: +1 for header, +1 for 1-based indexing
+      const row = dataRows[i];
       
       // Map row data (adjust indices based on your sheet structure)
       const name = row[1] || '';
@@ -230,28 +241,28 @@ async function checkForNewRows() {
       const zusage = row[3] || '';
       const guests = row[4] || '';
       const comment = row[5] || '';
-      const sent = row[6] || '';
       
       if (!email) {
-        console.log(`Row ${rowIndex}: No email found, skipping`);
-        // Still update lastProcessedRow even if no email
+        console.log(`➡️ Row ${rowIndex}: No email found, skipping`);
         continue;
       }
       
-      if (sent.toLowerCase() === 'true') {
-        console.log(`Row ${rowIndex}: Email ${email} đã gửi trước đó, bỏ qua`);
-        // Still update lastProcessedRow
+      const emailLower = email.toLowerCase().trim();
+      
+      // Kiểm tra nếu email đã được xử lý
+      if (processedEmails.has(emailLower)) {
+        console.log(`⏭️ Row ${rowIndex}: ${email} - ĐÃ GỬI TRƯỚC ĐÂY`);
+        skippedEmailsCount++;
         continue;
       }
 
-      console.log(`Processing row ${rowIndex}: ${name} (${email}) - ${zusage}`);
+      console.log(`\n🆕 Row ${rowIndex}: XỬ LÝ MỚI - ${name} (${email}) - ${zusage}`);
 
-      // Check if "Zusage zu welcher Hochzeit?" equals "neither"
       let emailSent = false;
-      const emailLower = email.toLowerCase();
 
+      // Gửi email dựa trên lựa chọn
       if (zusage.toLowerCase() === 'neither') {
-        // Send "Thật tiếc" email
+        console.log(`✉️ Gửi email "Thật tiếc" đến ${email}`);
         emailSent = await sendEmail(
           email,
           'Thật tiếc! 💔',
@@ -261,112 +272,48 @@ async function checkForNewRows() {
            <br>`
         );
       } else {
-        // Send "Cảm ơn đã tham dự" email
+        console.log(`✉️ Gửi email "Cảm ơn" đến ${email}`);
         emailSent = await sendEmail(
           email,
           'Cảm ơn bạn đã xác nhận tham dự 💍',
           `<p>Xin cảm ơn bạn rất nhiều vì đã phản hồi ☺️!</p>
-           <p>Chúng tôi rất vui khi bạn sẽ tham dự ngày cưới của chúng tôi. 
-           Điều này thực sự có ý nghĩa với chúng tôi, không chỉ để trải qua ngày đặc biệt này như một cặp đôi 👩🏻‍❤️‍💋‍👨🏽, mà còn để cùng những người quan trọng với chúng tôi ăn mừng.</p>
+           <p>Chúng tôi rất vui khi bạn sẽ tham dự ngày cưới của chúng tôi.</p>
            <p>Rất vui vì bạn sẽ là một phần trong ngày đặc biệt này!💍👰🏻‍♀️🤵🏽🌷</p>
            <br>
            <img src="cid:just_married_image" alt="Just Married" style="max-width: 100%; height: auto; margin: 20px 0;">`
         );
       }
 
-      // Mark email as processed only if email was sent successfully
       if (emailSent) {
+        // Thêm email vào danh sách đã xử lý
         processedEmails.add(emailLower);
-        console.log(`Marked ${emailLower} as processed`);
-      
-        try {
-          console.log(`🔄 Attempting to update: ${SHEET_NAME}!H${rowIndex}`);
-          
-          // THỬ NHIỀU CÁCH UPDATE
-          let updateSuccess = false;
-          
-          // Cách 1: Dùng range với sheet name
-          try {
-            await sheets.spreadsheets.values.update({
-              spreadsheetId: SPREADSHEET_ID,
-              range: `${SHEET_NAME}!H${rowIndex}`,
-              valueInputOption: 'RAW',
-              requestBody: {
-                values: [['TRUE']],
-              },
-            });
-            console.log(`✅ SUCCESS: Updated ${SHEET_NAME}!H${rowIndex} to TRUE`);
-            updateSuccess = true;
-          } catch (err1) {
-            console.log(`❌ Method 1 failed: ${err1.message}`);
-            
-            // Cách 2: Dùng range không có sheet name
-            try {
-              await sheets.spreadsheets.values.update({
-                spreadsheetId: SPREADSHEET_ID,
-                range: `H${rowIndex}`,
-                valueInputOption: 'RAW',
-                requestBody: {
-                  values: [['TRUE']],
-                },
-              });
-              console.log(`✅ SUCCESS: Updated H${rowIndex} to TRUE`);
-              updateSuccess = true;
-            } catch (err2) {
-              console.log(`❌ Method 2 failed: ${err2.message}`);
-              
-              // Cách 3: Dùng batchUpdate
-              try {
-                await sheets.spreadsheets.values.batchUpdate({
-                  spreadsheetId: SPREADSHEET_ID,
-                  requestBody: {
-                    valueInputOption: 'RAW',
-                    data: [
-                      {
-                        range: `H${rowIndex}`,
-                        values: [['TRUE']],
-                      },
-                    ],
-                  },
-                });
-                console.log(`✅ SUCCESS: Batch updated H${rowIndex} to TRUE`);
-                updateSuccess = true;
-              } catch (err3) {
-                console.log(`❌ Method 3 failed: ${err3.message}`);
-                
-                // Cách 4: Kiểm tra bằng cách đọc ô đó trước
-                try {
-                  const currentValue = await sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: `H${rowIndex}`,
-                  });
-                  console.log(`📖 Current value at H${rowIndex}:`, currentValue.data.values);
-                } catch (err4) {
-                  console.log(`❌ Cannot read H${rowIndex}: ${err4.message}`);
-                }
-              }
-            }
-          }
-          
-          if (!updateSuccess) {
-            console.error(`❌ ALL UPDATE METHODS FAILED for row ${rowIndex}`);
-          }
-          
-        } catch (err) {
-          console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
-        }
+        newEmailsCount++;
+        console.log(`✅ Đã gửi và lưu ${email} vào danh sách đã xử lý`);
+      } else {
+        console.log(`❌ Gửi email thất bại cho ${email}`);
       }
-      
-      // Update last processed row
-      lastProcessedRow = rowIndex - 1; // -1 because rowIndex is 1-indexed for spreadsheet
-      saveLastProcessedRow(lastProcessedRow);
     }
     
-    // Save the current row count after processing
-    saveRowCount(currentRowCount);
+    // Lưu danh sách emails đã xử lý
+    if (newEmailsCount > 0) {
+      saveProcessedEmails(processedEmails);
+      console.log(`\n🎉 HOÀN THÀNH: Đã xử lý ${newEmailsCount} email mới`);
+    } else {
+      console.log(`\nℹ️ Không có email mới nào để xử lý`);
+    }
+    
+    console.log(`📊 Thống kê:`);
+    console.log(`   - Đã xử lý trước đó: ${skippedEmailsCount} emails`);
+    console.log(`   - Mới xử lý: ${newEmailsCount} emails`);
+    console.log(`   - Tổng đã xử lý: ${processedEmails.size} emails`);
     
   } catch (error) {
-    console.error('Error in checkForNewRows:', error);
+    console.error('❌ Error in checkForNewRows:', error);
+    
+    // Vẫn cố gắng lưu processed emails nếu có lỗi
+    if (processedEmails) {
+      saveProcessedEmails(processedEmails);
+    }
   }
 }
 function startPolling() {
