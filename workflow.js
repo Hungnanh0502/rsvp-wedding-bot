@@ -161,14 +161,14 @@ async function checkForNewRows() {
       // Try with sheet name
       response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A:Z`,
+        range: `${SHEET_NAME}!B:Z`,
       });
     } catch (error) {
       // If that fails, try without sheet name (uses first sheet)
       try {
         response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'A:Z',
+          range: 'B:Z',
         });
       } catch (err2) {
         // Try getting sheet names first
