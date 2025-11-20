@@ -286,8 +286,9 @@ async function checkForNewRows() {
           console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
         }
       }
-          
-
+  }
+}
+}
 // Run the check every minute (for local development)
 function startPolling() {
   console.log('Starting workflow polling...');
