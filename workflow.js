@@ -225,22 +225,15 @@ async function checkForNewRows() {
       const zusage = row[3] || '';
       const guests = row[4] || '';
       const comment = row[5] || '';
-      
+      const sent = row[6] || '';
       if (!email) {
         console.log(`Row ${rowIndex}: No email found, skipping`);
         // Still update lastProcessedRow even if no email
-        lastProcessedRow = rowIndex - 1;
         continue;
       }
-
-      // Normalize email to lowercase for comparison
-      const emailLower = email.toLowerCase().trim();
-      
-      // Check if we've already sent an email to this address in this run
-      if (processedEmails.has(emailLower)) {
-        console.log(`Row ${rowIndex}: Email ${emailLower} already processed in this run, skipping to prevent duplicate`);
+      if (sent.toLowerCase() === 'true') {
+        console.log(`Row ${rowIndex}: Email ${email} đã gửi trước đó, bỏ qua`);
         // Still update lastProcessedRow
-        lastProcessedRow = rowIndex - 1;
         continue;
       }
 
@@ -278,23 +271,21 @@ async function checkForNewRows() {
       if (emailSent) {
         processedEmails.add(emailLower);
         console.log(`Marked ${emailLower} as processed`);
-      }
-      
-      // Update last processed row after processing this row
-      lastProcessedRow = rowIndex - 1;
-      saveLastProcessedRow(lastProcessedRow);
-    }
-
-    console.log(`Finished processing. Last processed row: ${lastProcessedRow}`);
-    
-    // Save the current row count after processing
-    saveRowCount(currentRowCount);
-    console.log(`Saved row count: ${currentRowCount}`);
-
-  } catch (error) {
-    console.error('Error checking for new rows:', error);
+        try {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!H${rowIndex}`,
+            valueInputOption: 'RAW',
+            requestBody: {
+        values: [['TRUE']],
+      },
+    });
+    console.log(`Row ${rowIndex}: Updated Sent column to TRUE`);
+  } catch (err) {
+    console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
   }
 }
+          
 
 // Run the check every minute (for local development)
 function startPolling() {
