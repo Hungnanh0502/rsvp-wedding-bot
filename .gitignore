@@ -6,6 +6,3 @@ service-account-key.json
 !package-lock.json
 *.log
 .DS_Store
-.last-processed-row
-.row-count
-
