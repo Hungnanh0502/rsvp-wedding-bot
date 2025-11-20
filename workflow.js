@@ -226,11 +226,13 @@ async function checkForNewRows() {
       const guests = row[4] || '';
       const comment = row[5] || '';
       const sent = row[6] || '';
+      
       if (!email) {
         console.log(`Row ${rowIndex}: No email found, skipping`);
         // Still update lastProcessedRow even if no email
         continue;
       }
+      
       if (sent.toLowerCase() === 'true') {
         console.log(`Row ${rowIndex}: Email ${email} đã gửi trước đó, bỏ qua`);
         // Still update lastProcessedRow
@@ -241,6 +243,7 @@ async function checkForNewRows() {
 
       // Check if "Zusage zu welcher Hochzeit?" equals "neither"
       let emailSent = false;
+      const emailLower = email.toLowerCase();
 
       if (zusage.toLowerCase() === 'neither') {
         // Send "Thật tiếc" email
@@ -266,7 +269,6 @@ async function checkForNewRows() {
         );
       }
 
-
       // Mark email as processed only if email was sent successfully
       if (emailSent) {
         processedEmails.add(emailLower);
@@ -286,10 +288,19 @@ async function checkForNewRows() {
           console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
         }
       }
+      
+      // Update last processed row
+      lastProcessedRow = rowIndex - 1; // -1 because rowIndex is 1-indexed for spreadsheet
+      saveLastProcessedRow(lastProcessedRow);
+    }
+    
+    // Save the current row count after processing
+    saveRowCount(currentRowCount);
+    
+  } catch (error) {
+    console.error('Error in checkForNewRows:', error);
   }
 }
-}
-// Run the check every minute (for local development)
 function startPolling() {
   console.log('Starting workflow polling...');
   console.log(`Monitoring sheet: ${SPREADSHEET_ID}`);
