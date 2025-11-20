@@ -215,6 +215,11 @@ async function checkForNewRows() {
     
     console.log(`Found ${newRows.length} new row(s) to process (starting from row ${lastProcessedRow + 2})`);
     
+    // DEBUG: Kiểm tra quyền trước khi xử lý
+    console.log('=== DEBUG PERMISSION CHECK ===');
+    console.log(`Spreadsheet ID: ${SPREADSHEET_ID}`);
+    console.log(`Sheet Name: "${SHEET_NAME}"`);
+    
     for (let i = 0; i < newRows.length; i++) {
       const rowIndex = lastProcessedRow + i + 2; // +2 because: lastProcessedRow is 0-indexed, +1 for header, +1 for next row
       const row = newRows[i];
@@ -275,15 +280,78 @@ async function checkForNewRows() {
         console.log(`Marked ${emailLower} as processed`);
       
         try {
-          await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!H${rowIndex}`,
-            valueInputOption: 'RAW',
-            requestBody: {
-              values: [['TRUE']],
-            },
-          });
-          console.log(`Row ${rowIndex}: Updated Sent column to TRUE`);
+          console.log(`🔄 Attempting to update: ${SHEET_NAME}!H${rowIndex}`);
+          
+          // THỬ NHIỀU CÁCH UPDATE
+          let updateSuccess = false;
+          
+          // Cách 1: Dùng range với sheet name
+          try {
+            await sheets.spreadsheets.values.update({
+              spreadsheetId: SPREADSHEET_ID,
+              range: `${SHEET_NAME}!H${rowIndex}`,
+              valueInputOption: 'RAW',
+              requestBody: {
+                values: [['TRUE']],
+              },
+            });
+            console.log(`✅ SUCCESS: Updated ${SHEET_NAME}!H${rowIndex} to TRUE`);
+            updateSuccess = true;
+          } catch (err1) {
+            console.log(`❌ Method 1 failed: ${err1.message}`);
+            
+            // Cách 2: Dùng range không có sheet name
+            try {
+              await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `H${rowIndex}`,
+                valueInputOption: 'RAW',
+                requestBody: {
+                  values: [['TRUE']],
+                },
+              });
+              console.log(`✅ SUCCESS: Updated H${rowIndex} to TRUE`);
+              updateSuccess = true;
+            } catch (err2) {
+              console.log(`❌ Method 2 failed: ${err2.message}`);
+              
+              // Cách 3: Dùng batchUpdate
+              try {
+                await sheets.spreadsheets.values.batchUpdate({
+                  spreadsheetId: SPREADSHEET_ID,
+                  requestBody: {
+                    valueInputOption: 'RAW',
+                    data: [
+                      {
+                        range: `H${rowIndex}`,
+                        values: [['TRUE']],
+                      },
+                    ],
+                  },
+                });
+                console.log(`✅ SUCCESS: Batch updated H${rowIndex} to TRUE`);
+                updateSuccess = true;
+              } catch (err3) {
+                console.log(`❌ Method 3 failed: ${err3.message}`);
+                
+                // Cách 4: Kiểm tra bằng cách đọc ô đó trước
+                try {
+                  const currentValue = await sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `H${rowIndex}`,
+                  });
+                  console.log(`📖 Current value at H${rowIndex}:`, currentValue.data.values);
+                } catch (err4) {
+                  console.log(`❌ Cannot read H${rowIndex}: ${err4.message}`);
+                }
+              }
+            }
+          }
+          
+          if (!updateSuccess) {
+            console.error(`❌ ALL UPDATE METHODS FAILED for row ${rowIndex}`);
+          }
+          
         } catch (err) {
           console.error(`Row ${rowIndex}: Failed to update Sent column`, err);
         }
