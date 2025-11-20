@@ -178,7 +178,7 @@ async function checkForNewRows() {
         const firstSheetName = sheetInfo.data.sheets[0].properties.title;
         response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${firstSheetName}!A:Z`,
+          range: `${firstSheetName}!B:Z`,
         });
       }
     }
