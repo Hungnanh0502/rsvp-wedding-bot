@@ -515,6 +515,18 @@
       display: block;
       background: transparent;
     }
+      .gallery-item img.gallery-item-img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+      object-position: center; /* mặc định */
+      display: block;
+      background: transparent;
+    }
+
+    .gallery-item img.top-focus {
+      object-position: 50% 20%; /* chỉ ảnh cần đẩy lên */
+    }
 
     /* RSVP Section */
     .rsvp-content {
@@ -1722,16 +1734,16 @@
       </h2>
       <div class="gallery-grid">
         <div class="gallery-item">
-          <img src="img1.jpg" alt="Hochzeitsfoto 1">
+          <img src="img1.jpg" alt="Hochzeitsfoto 1 class="gallery-item-img">
         </div>
         <div class="gallery-item">
-          <img src="img2.jpg" alt="Hochzeitsfoto 2">
+          <img src="img2.jpg" alt="Hochzeitsfoto 2" class="gallery-item-img top-focus">
         </div>
         <div class="gallery-item">
-          <img src="img3.jpg" alt="Hochzeitsfoto 3">
+          <img src="img3.jpg" alt="Hochzeitsfoto 3 class="gallery-item-img">
         </div>
         <div class="gallery-item">
-          <img src="img4.jpg" alt="Hochzeitsfoto 4">
+          <img src="img4.jpg" alt="Hochzeitsfoto 4" class="gallery-item-img top-focus">
         </div>
       </div>
     </div>
