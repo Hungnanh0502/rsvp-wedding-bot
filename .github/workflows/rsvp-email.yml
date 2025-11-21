@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,13 +53,5 @@ jobs:
       
       - name: Run RSVP email workflow
         run: node workflow.js
-      
-      - name: Auto-commit processed emails
-        if: success()
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add processed_emails.json
-          # Chỉ commit nếu có thay đổi
-          git diff --staged --quiet || git commit -m "🤖 Update processed emails [skip ci]"
-          git push
+        
+      # 🚨 KHÔNG CÓ BƯỚC COMMIT/PUSH Ở ĐÂY
