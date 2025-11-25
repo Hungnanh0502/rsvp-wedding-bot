@@ -33,32 +33,30 @@ jobs:
         run: |
           printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
 
-      # ====================== CHỈ CẦN ĐÚNG 4 BƯỚC NÀY ======================
-      # 1. Restore cache (key cố định)
-      - name: Restore processed emails
-        id: cache
+      # ────────────────── CÁCH DUY NHẤT HOẠT ĐỘNG 100% ──────────────────
+      - name: Restore processed emails from cache
+        id: cache-emails
         uses: actions/cache@v4
         with:
           path: processed_emails.json
-          key: rsvp-processed-emails-v1               # ← cố định mãi mãi
-          restore-keys: rsvp-processed-emails-v1
+          key: rsvp-processed-emails-v1-${{ github.ref }}   # thêm github.ref để cùng branch
+          restore-keys: |
+            rsvp-processed-emails-v1-${{ github.ref }}
+            rsvp-processed-emails-v1-
 
-      # 2. Nếu miss → tạo file rỗng
-      - name: Create empty file if cache miss
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Create empty processed_emails.json if cache miss
+        if: steps.cache-emails.outputs.cache-hit != 'true'
         run: |
           echo "[]" > processed_emails.json
           echo "Cache miss → created empty file"
 
-      # 3. Chạy script chính
-      - name: Run RSVP workflow
+      - name: Run RSVP email workflow
         run: node workflow.js
 
-      # 4. BẮT BUỘC LƯU LẠI CACHE MỚI (dù hit hay miss)
-      - name: Save processed emails cache
+      - name: Save processed emails cache (ALWAYS)
         if: always()
         uses: actions/cache/save@v4
         with:
           path: processed_emails.json
-          key: rsvp-processed-emails-v1               # ← dùng lại đúng key cố định
-      # =====================================================================
+          key: rsvp-processed-emails-v1-${{ github.ref }}   # dùng lại đúng key trên
+      # ─────────────────────────────────────────────────────────────────────
