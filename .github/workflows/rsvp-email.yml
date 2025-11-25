@@ -33,38 +33,32 @@ jobs:
         run: |
           printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
 
-      # ───────────────────────────────
-      # 1. Restore cache (key luôn luôn mới)
-      # ───────────────────────────────
-      - name: Restore processed emails cache
-        id: cache-emails
+      # ====================== CHỈ CẦN ĐÚNG 4 BƯỚC NÀY ======================
+      # 1. Restore cache (key cố định)
+      - name: Restore processed emails
+        id: cache
         uses: actions/cache@v4
         with:
           path: processed_emails.json
-          key: processed-emails-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          key: rsvp-processed-emails-v1               # ← cố định mãi mãi
+          restore-keys: rsvp-processed-emails-v1
 
-      # ───────────────────────────────
-      # 2. Nếu lần đầu hoặc cache miss → tạo file rỗng
-      # ───────────────────────────────
-      - name: Create empty processed_emails.json if not exists
-        if: steps.cache-emails.outputs.cache-hit != 'true'
+      # 2. Nếu miss → tạo file rỗng
+      - name: Create empty file if cache miss
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           echo "[]" > processed_emails.json
-          echo "Created new empty processed_emails.json"
+          echo "Cache miss → created empty file"
 
-      # ───────────────────────────────
       # 3. Chạy script chính
-      # ───────────────────────────────
-      - name: Run RSVP email workflow
+      - name: Run RSVP workflow
         run: node workflow.js
 
-      # ───────────────────────────────
-      # 4. BẮT BUỘC LƯU LẠI CACHE MỚI dù có hit hay không
-      #    (đây là bước quan trọng nhất!)
-      # ───────────────────────────────
-      - name: Save processed emails cache (always)
+      # 4. BẮT BUỘC LƯU LẠI CACHE MỚI (dù hit hay miss)
+      - name: Save processed emails cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: processed_emails.json
-          key: processed-emails-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          key: rsvp-processed-emails-v1               # ← dùng lại đúng key cố định
+      # =====================================================================
