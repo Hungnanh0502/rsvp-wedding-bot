@@ -1,22 +1,22 @@
 name: RSVP Email Workflow
-# ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-# THÊM DÒNG NÀY LÀ XONG 10000% KHÔNG BAO GIỜ GỬI LẠI NỮA
-concurrency:
-  group: rsvp-workflow
-  cancel-in-progress: false
-# ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-
 on:
   schedule:
-    - cron: '*/3 * * * *'   # đổi thành 3 phút/lần cho chắc ăn (hoặc 5 phút cũng được)
+    - cron: '*/3 * * * *'   # 3 phút/lần là đủ
   workflow_dispatch:
+
+# Không cần concurrency, không cần cache gì nữa
 
 jobs:
   check-rsvps:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write              # ← quan trọng: cho phép push
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,25 +40,30 @@ jobs:
         run: |
           printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
 
-      - name: Restore processed emails from cache
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: processed_emails.json
-          key: rsvp-processed-emails-v1-${{ github.ref }}
-          restore-keys: rsvp-processed-emails-v1-
-
-      - name: Create empty file if cache miss
-        if: steps.cache.outputs.cache-hit != 'true'
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      # DÙNG FILE TRONG REPO LUÔN – CHẮC CHẮN NHẤT
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      - name: Ensure processed_emails.json exists
         run: |
-          echo "[]" > processed_emails.json
+          if [ ! -f processed_emails.json ]; then
+            echo "[]" > processed_emails.json
+            git add processed_emails.json
+            git commit -m "Init processed_emails.json" || echo "No changes"
+          fi
 
-      - name: Run RSVP email workflow
+      - name: Run RSVP workflow
         run: node workflow.js
 
-      - name: Save processed emails cache (always)
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: processed_emails.json
-          key: rsvp-processed-emails-v1-${{ github.ref }}
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      # TỰ ĐỘNG COMMIT + PUSH FILE MỚI NHẤT
+      # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      - name: Commit & push processed_emails.json if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add processed_emails.json
+          git diff --quiet && git diff --staged --quiet || (
+            git commit -m "Update processed emails $(date +'%Y-%m-%d %H:%M')" 
+            git push
+          )
+          echo "File processed_emails.json đã được cập nhật lên repo nếu có thay đổi"
