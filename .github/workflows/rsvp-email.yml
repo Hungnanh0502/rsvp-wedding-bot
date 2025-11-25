@@ -1,7 +1,14 @@
 name: RSVP Email Workflow
+# ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+# THÊM DÒNG NÀY LÀ XONG 10000% KHÔNG BAO GIỜ GỬI LẠI NỮA
+concurrency:
+  group: rsvp-workflow
+  cancel-in-progress: false
+# ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+
 on:
   schedule:
-    - cron: '*/2 * * * *'
+    - cron: '*/3 * * * *'   # đổi thành 3 phút/lần cho chắc ăn (hoặc 5 phút cũng được)
   workflow_dispatch:
 
 jobs:
@@ -33,30 +40,25 @@ jobs:
         run: |
           printf '%s\n' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
 
-      # ────────────────── CÁCH DUY NHẤT HOẠT ĐỘNG 100% ──────────────────
       - name: Restore processed emails from cache
-        id: cache-emails
+        id: cache
         uses: actions/cache@v4
         with:
           path: processed_emails.json
-          key: rsvp-processed-emails-v1-${{ github.ref }}   # thêm github.ref để cùng branch
-          restore-keys: |
-            rsvp-processed-emails-v1-${{ github.ref }}
-            rsvp-processed-emails-v1-
+          key: rsvp-processed-emails-v1-${{ github.ref }}
+          restore-keys: rsvp-processed-emails-v1-
 
-      - name: Create empty processed_emails.json if cache miss
-        if: steps.cache-emails.outputs.cache-hit != 'true'
+      - name: Create empty file if cache miss
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           echo "[]" > processed_emails.json
-          echo "Cache miss → created empty file"
 
       - name: Run RSVP email workflow
         run: node workflow.js
 
-      - name: Save processed emails cache (ALWAYS)
+      - name: Save processed emails cache (always)
         if: always()
         uses: actions/cache/save@v4
         with:
           path: processed_emails.json
-          key: rsvp-processed-emails-v1-${{ github.ref }}   # dùng lại đúng key trên
-      # ─────────────────────────────────────────────────────────────────────
+          key: rsvp-processed-emails-v1-${{ github.ref }}
